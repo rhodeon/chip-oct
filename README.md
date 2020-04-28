@@ -1,1 +1,2 @@
-Just Another CHIP-8 Emulator
+Currently tested on Linux. 
+Should work on Windows with a change in the SDL2 header path.
