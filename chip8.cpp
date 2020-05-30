@@ -7,8 +7,9 @@
 
 #include "chip8.h"
 
+
 chip8::chip8() {
-    std::array<unsigned char, 80> fontset = {
+    fontset = {
         0xF0, 0x90, 0x90, 0x90, 0xF0,   // 0
         0x20, 0x60, 0x20, 0x20, 0x70,   // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0,   // 2
@@ -27,6 +28,8 @@ chip8::chip8() {
         0xF0, 0x80, 0xF0, 0x80, 0x80,   // F
         
     };
+
+    initialize();
 }
 
 void chip8::initialize() {
@@ -53,14 +56,22 @@ void chip8::initialize() {
     for (auto& level : stack) {
         level = 0;
     }
+    
+    // clear keyboard
+    for (auto& key : keyboard) {
+        key = 0;
+    }
 
     // clear display
     clear_display();
+
     
     // load fonts to memory
     for (int i = 0; i < 80; ++i) {
         memory[i] = fontset[i];
     }
+
+    srand(time(NULL));
 }
 
 void chip8::clear_display() {
@@ -71,7 +82,7 @@ void chip8::clear_display() {
 
 bool chip8::load_rom(const char* rom_name) {
     // load ROM
-    std::fstream rom(rom_name);
+    std::fstream rom(rom_name, std::ios::in|std::ios::binary);
     
     // get size
     rom.seekg(0, rom.end);
@@ -84,7 +95,7 @@ bool chip8::load_rom(const char* rom_name) {
     }
     
     // create buffer to hold ROM data
-    auto data_buffer = std::make_unique<char>(rom_size);
+    std::unique_ptr<char, decltype(free)*>  data_buffer((char*)malloc(rom_size), free);   
 
     // copy rom data to buffer
     int data_size = rom.readsome(data_buffer.get(), rom_size);
@@ -94,7 +105,7 @@ bool chip8::load_rom(const char* rom_name) {
     }
 
     // copy buffer data into CHIP-8 memory
-    for (int byte = 0; byte < 4096; ++byte) {
+    for (int byte = 0; byte < data_size; ++byte) {
         memory[512 + byte] = data_buffer.get()[byte];
     }
 
@@ -108,23 +119,36 @@ void chip8::emulate_cycle() {
 
     // decode opcode
     decode_opcode(op_ptr);
+
+    // decrement timers
+    if (delay_timer > 0) {
+        --delay_timer;
+    }
+
+    if (sound_timer > 0) {
+        // make sound
+        --sound_timer;
+    }
 }
 
 void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
-    // 0NNN ignored
     switch (*opcode & 0xF000) {
-        case 0x000F: {   // 00E0 or 00EE
-            switch (*opcode & 0x000F) {
-                case 0x0000: {    // 00E0
+        // 0NNN ignored
+        case 0x0000: {   // 00E0 or 00EE
+            switch (*opcode & 0x00FF) {
+                case 0x00E0: {    // 00E0
                     // clear the screen
                     clear_display();
+                    draw_flag = true;
+                    pc += 2;
                 break;
                 }
 
-                case 0x000E: {   // 00EE
+                case 0x00EE: {   // 00EE
                     // return from subroutine
                     --sp;
                     pc = stack[sp];
+                    pc += 2;
                 break;
                 }
 
@@ -132,14 +156,12 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     std::cout << "Unknown Opcode:" << *opcode << std::endl;
                 break;
             }
-      
         break;
         }
 
         case 0x1000: {   // 1NNN
             // jump to address NNN
             pc = *opcode & 0x0FFF;
-
         break;
         }
 
@@ -148,7 +170,6 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             stack[sp] = pc;    // save current address
             ++sp;
             pc = *opcode & 0x0FFF;
-
         break;
         }
 
@@ -175,10 +196,8 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             else {
                 pc += 2;
             }
-        
         break;
         }
-
 
         case 0x5000: {    // 5XY0
             // skip next instruction if VX equals VY
@@ -223,7 +242,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 }
 
                 case 0x0001: {   // 8XY1
-                    //  set VX to VX OR VY
+                    //  set VX to (VX OR VY)
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     VX |= VY;
@@ -232,7 +251,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 }
 
                 case 0x0002: {   // 8XY2
-                    //  set VX to VX AND VY
+                    //  set VX to (VX AND VY)
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     VX &= VY;
@@ -270,15 +289,15 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
 
                 case 0x0005: {   // 8XY5
                     // subtract VY from VX
-                    // set VF to 1 if borrow occurs, and 0 otherwise
+                    // set VF to 0 if borrow occurs, and 1 otherwise
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     
                     if (VX < VY) {      // borrow occurs
-                        V[0xF] = 1;
+                        V[0xF] = 0;
                     }
                     else {
-                        V[0xF] = 0;
+                        V[0xF] = 1;
                     }
                     VX -= VY;
                     pc += 2;
@@ -289,7 +308,6 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     // set VF to the LSB of VX
                     // shift VX right once
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
-                    unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     V[0xF] = (VX & 0x01);    // LSB of VX
                     VX >>= 1;
                     pc += 2;
@@ -298,15 +316,15 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
 
                 case 0x0007: {   // 8XY7
                     // set VX to VY - VX
-                    // set VF to 1 if borrow occurs, and 0 otherwise
+                    // set VF to 0 if borrow occurs, and 1 otherwise
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     
                     if (VY < VX) {      // borrow occurs
-                        V[0xF] = 1;
+                        V[0xF] = 0;
                     }
                     else {
-                        V[0xF] = 0;
+                        V[0xF] = 1;
                     }
                     
                     VX = VY - VX;
@@ -318,7 +336,6 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     // set VF to the MSB of VX
                     // shift VX left once
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
-                    unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     V[0xF] = (VX >> 7);    // MSB of VX
                     VX <<= 1;
                     pc += 2;
@@ -364,8 +381,8 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             // VX = number & mask
             unsigned char mask = *opcode & 0x00FF;      // mask = NN
             unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
-            srand(time(NULL));
-            unsigned char rand_num = rand() % 0x100;    // range of 00 - FF
+            // srand(time(NULL));
+            unsigned char rand_num = rand() % (0xFF + 1);    // range of 00 - FF
             VX = rand_num & mask;
             pc += 2;
         break;
@@ -375,8 +392,8 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             // draw sprite at VX, VY with N bytes of sprite data starting at I
             // flip pixel on screen if corresponding pixel in memory is 1
             // set VF to 1 if a pixel is unset, and 0 otherwise
-            int X = (*opcode & 0x0F00) >> 8;    // starting X point (column)
-            int Y = (*opcode & 0x00F0) >> 4;    // starting y point (row)
+            int X = V[(*opcode & 0x0F00) >> 8];    // starting X point (column)
+            int Y = V[(*opcode & 0x00F0) >> 4];    // starting y point (row)
             int height = *opcode & 0x000F;  // number of rows (N)
             unsigned char pixels;           // pixels in memory (starting at address I)
 
@@ -390,10 +407,11 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 // traverse over columns
                 for (int column = 0; column < 8; ++column) {
                     int abs_column = X + column;
-                    unsigned char pixel_on_display = display[abs_column + (abs_row * 64)];  // current pixel on screen
+                    unsigned char& pixel_on_display = display[abs_column + (abs_row * 64)];  // current pixel on screen
+                    char pixel_in_memory = pixels & (0x80 >> column);
 
                     // check if pixel in memory is 1
-                    if ((pixels & (0x80 >> column)) != 0) {
+                    if (pixel_in_memory != 0) {
                         if (pixel_on_display == 1) { // pixel is unset
                             V[0xF] = 1;
                         }
@@ -403,13 +421,13 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             }
 
             pc += 2;
-
+            draw_flag = 1;
         break;
         }
 
         case 0xE000: {   // EX9E, EXA1
-            switch (*opcode & 0x000F) {
-                case 0x000E: {   // EX9E
+            switch (*opcode & 0x00FF) {
+                case 0x009E: {   // EX9E
                     // skip next instruction if key corresponding to value of VX is pressed
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     if (keyboard[VX] == 1) {    // key is pressed
@@ -422,7 +440,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 break;
                 }
 
-                case 0x0001: {   // EXA1
+                case 0x00A1: {   // EXA1
                     // skip next instruction if key corresponding to value of VX is not pressed
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     if (keyboard[VX] == 0) {    // key is not pressed
@@ -442,7 +460,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
         }
 
         case 0xF000: {    // FX07, FX0A, FX15, FX18, FX1E, FX29, FX33, FX55, or FX65
-            switch (*opcode & 0x000F) {
+            switch (*opcode & 0x00FF) {
                 case 0x0007: {   // FX07
                     // set VX to value of delay timer
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
@@ -452,15 +470,16 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 }
 
                 case 0x000A: {   // FX0A
-                    // Wait for a keypress and store its value in VX
+                    // wait for a keypress and store its value in VX
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
                     
-                    int pressed = 0;    // state of keys
-                    while (pressed == 0) {      // while no key is pressed
+                    bool pressed = false;    // state of keys
+                    
+                    while (pressed == false) {      // while no key is pressed
                         // check through keyboard for any pressed key
                         for (int key = 0; key < 16; ++key) {    
                             if (keyboard[key] == 1) {   // key is pressed
-                                pressed = 1;
+                                pressed = true;
                                 VX = key;
                                 break;
                             }
@@ -470,7 +489,15 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 break;
                 }
 
-                case 0x0008: {   // FX18
+                case 0x0015: {   // FX15
+                    // set delay timer to VX
+                    unsigned char VX = V[(*opcode & 0x0F00) >> 8];
+                    delay_timer = VX;
+                    pc += 2;
+                break;
+                }
+
+                case 0x0018: {   // FX18
                     // set sound timer to VX
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     sound_timer = VX;
@@ -478,7 +505,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 break;
                 }
 
-                case 0x000E: {   // FX1E
+                case 0x001E: {   // FX1E
                     // add VX to I
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     I += VX;
@@ -486,64 +513,47 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 break;
                 }
 
-                case 0x0009: {   // FX29
+                case 0x0029: {   // FX29
                     // Set I to the memory address of the sprite data corresponding to the hexadecimal digit in VX
                     unsigned char sprite = V[(*opcode & 0x0F00) >> 8];
-                    I = memory[sprite * 5];      // since each sprite occupies 5 bytes 
+                    I = sprite * 5;      // since each sprite occupies 5 bytes 
                     pc += 2;
                 break;
                 }
 
-                case 0x0003: {   // FX33
+                case 0x0033: {   // FX33
                     // Store the BCD of the value in register VX at addresses I, I+1, and I+2
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     memory[I] = VX / 100;               // extract 1st digit
                     memory[I + 1] = (VX % 100) / 10;    // extract 2nd digit
                     memory[I + 2] = VX % 10;            // extract 3rd digit
                     pc += 2;
-
                 break;
                 }
 
-                case 0x0005:    // FX15, FX55 or FX65
-                    switch(*opcode & 0x00F0) {
-                        case 0x0010: {   // FX15
-                            // set delay timer to VX
-                            unsigned char VX = V[(*opcode & 0x0F00) >> 8];
-                            delay_timer = VX;
-                            pc += 2;
-                        break;
-                        }
-
-                        case 0x0050: {   // FX55
-                            // store values of V0-VX in memory starting at address I
-                            // set I to I + X + 1
-                            int X = (*opcode & 0x0F00) >> 8;
-                            for (int reg = 0; reg <= X; ++reg) {
-                                memory[I + reg] = V[reg];
-                            }
-                            I += X + 1;
-                            pc += 2;
-                        break;
-                        }
-
-                        case 0x0060: {   // FX65
-                            // fill V0-VX with values at memory from address I
-                            // set I to I + X + 1
-                            int X = (*opcode & 0x0F00) >> 8;
-                            for (int reg = 0; reg <= X; ++reg) {
-                                V[reg] = memory[I + reg];
-                            }
-                            I += X + 1;
-                            pc += 2;
-                        break;
-                        }
-
-                        default:
-                            std::cout << "Unknown Opcode:" << *opcode << std::endl;
-                        break;
+                case 0x0055: {   // FX55
+                    // store values of V0-VX in memory starting at address I
+                    // set I to I + X + 1
+                    char X = (*opcode & 0x0F00) >> 8;
+                    for (int reg = 0; reg <= X; ++reg) {
+                        memory[I + reg] = V[reg];
                     }
+                    I += X + 1;
+                    pc += 2;
                 break;
+                }
+
+                case 0x0065: {   // FX65
+                    // fill V0-VX with values at memory from address I
+                    // set I to I + X + 1
+                    char X = (*opcode & 0x0F00) >> 8;
+                    for (int reg = 0; reg <= X; ++reg) {
+                        V[reg] = memory[I + reg];
+                    }
+                    I += X + 1;
+                    pc += 2;
+                break;
+                }
 
                 default:
                     std::cout << "Unknown Opcode:" << *opcode << std::endl;
