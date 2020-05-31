@@ -88,10 +88,11 @@ bool chip8::load_rom(const char* rom_name) {
     rom.seekg(0, rom.end);
     int rom_size = rom.tellg();
     rom.seekg(0);   // rewind rom
+    // std::cout << rom_size << std::endl;
 
     if (4096 - 512 < rom_size) {    // ensure size of ROM is valid
         std::cerr << "ROM size too large for memory" << std::endl;
-        return 0;
+        return false;
     }
     
     // create buffer to hold ROM data
@@ -100,8 +101,8 @@ bool chip8::load_rom(const char* rom_name) {
     // copy rom data to buffer
     int data_size = rom.readsome(data_buffer.get(), rom_size);
     if (data_size != rom_size) {
-        std::cerr << "Loading Error" << std::endl;
-        return 0;
+        std::cerr << "Reading Error" << std::endl;
+        return false;
     }
 
     // copy buffer data into CHIP-8 memory
@@ -110,6 +111,7 @@ bool chip8::load_rom(const char* rom_name) {
     }
 
     rom.close();
+    return true;
 }
 
 void chip8::emulate_cycle() {
@@ -141,7 +143,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     clear_display();
                     draw_flag = true;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x00EE: {   // 00EE
@@ -149,20 +151,20 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     --sp;
                     pc = stack[sp];
                     pc += 2;
-                break;
+                    break;
                 }
 
                 default:
                     std::cout << "Unknown Opcode:" << *opcode << std::endl;
-                break;
+                    break;
             }
-        break;
+            break;
         }
 
         case 0x1000: {   // 1NNN
             // jump to address NNN
             pc = *opcode & 0x0FFF;
-        break;
+            break;
         }
 
         case 0x2000: {   // 2NNN
@@ -170,7 +172,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             stack[sp] = pc;    // save current address
             ++sp;
             pc = *opcode & 0x0FFF;
-        break;
+            break;
         }
 
         case 0x3000: {   // 3XNN
@@ -183,7 +185,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             else {
                 pc += 2;
             }
-        break; 
+            break; 
         }
 
         case 0x4000: {   // 4XNN
@@ -196,7 +198,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             else {
                 pc += 2;
             }
-        break;
+            break;
         }
 
         case 0x5000: {    // 5XY0
@@ -209,7 +211,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             else {
                 pc += 2;
             }
-        break;
+            break;
         }
 
         case 0x6000: {   // 6XNN
@@ -218,7 +220,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             unsigned char NN = *opcode & 0x00FF;
             VX = NN;
             pc += 2;
-        break;
+            break;
         }
 
         case 0x7000: {   // 7XNN
@@ -227,7 +229,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             unsigned char NN = *opcode & 0x00FF;
             VX += NN;
             pc += 2;
-        break;
+            break;
         }
 
         case 0x8000: {    // 8XY0, 8XY1, 8XY2, 8XY3, 8XY4, 8XY5, 8XY6, 8XY7, or 8XYE
@@ -238,7 +240,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     VX = VY;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0001: {   // 8XY1
@@ -247,7 +249,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     VX |= VY;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0002: {   // 8XY2
@@ -256,7 +258,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     VX &= VY;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0003: {   // 8XY3
@@ -265,7 +267,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char VY = V[(*opcode & 0x00F0) >> 4];
                     VX ^= VY;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0004: {   // 8XY4
@@ -284,7 +286,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     
                     VX = VSUM;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0005: {   // 8XY5
@@ -301,7 +303,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     }
                     VX -= VY;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0006: {   // 8XY6
@@ -311,7 +313,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     V[0xF] = (VX & 0x01);    // LSB of VX
                     VX >>= 1;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0007: {   // 8XY7
@@ -329,7 +331,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     
                     VX = VY - VX;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x000E: {   // 8XYE
@@ -339,14 +341,14 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     V[0xF] = (VX >> 7);    // MSB of VX
                     VX <<= 1;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 default:
                     std::cout << "Unknown Opcode:" << *opcode << std::endl;
-                break;
+                    break;
             }
-        break;
+            break;
         }
 
         case 0x9000: {   // 9XY0
@@ -359,20 +361,20 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             else {
                 pc += 2;
             }
-        break;
+            break;
         }
 
         case 0xA000: {   // ANNN
             // store NNN in I
             I = *opcode & 0x0FFF;
             pc += 2;
-        break;
+            break;
         }
 
         case 0xB000: {   // BNNN
             // jump to address NNN + V0
             pc = (*opcode & 0x0FFF) + V[0];
-        break;
+            break;
         }
 
         case 0xC000: {    // CXNN
@@ -385,7 +387,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             unsigned char rand_num = rand() % (0xFF + 1);    // range of 00 - FF
             VX = rand_num & mask;
             pc += 2;
-        break;
+            break;
         }
 
         case 0xD000: {   // DXYN
@@ -421,8 +423,8 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             }
 
             pc += 2;
-            draw_flag = 1;
-        break;
+            draw_flag = true;
+            break;
         }
 
         case 0xE000: {   // EX9E, EXA1
@@ -436,8 +438,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     else {
                         pc += 2;
                     }
-
-                break;
+                    break;
                 }
 
                 case 0x00A1: {   // EXA1
@@ -449,14 +450,14 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     else {
                         pc += 2;
                     }
-                break;
+                    break;
                 }
 
                 default:
                     std::cout << "Unknown Opcode:" << *opcode << std::endl;
-                break;
+                    break;
             }
-        break;
+            break;
         }
 
         case 0xF000: {    // FX07, FX0A, FX15, FX18, FX1E, FX29, FX33, FX55, or FX65
@@ -466,27 +467,27 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
                     VX = delay_timer;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x000A: {   // FX0A
                     // wait for a keypress and store its value in VX
                     unsigned char& VX = V[(*opcode & 0x0F00) >> 8];
-                    
                     bool pressed = false;    // state of keys
                     
-                    while (pressed == false) {      // while no key is pressed
-                        // check through keyboard for any pressed key
-                        for (int key = 0; key < 16; ++key) {    
-                            if (keyboard[key] == 1) {   // key is pressed
-                                pressed = true;
-                                VX = key;
-                                break;
-                            }
+                    for (int key = 0; key < 16; ++key) {    
+                        if (keyboard[key] != 0) {   // a key is pressed
+                            pressed = true;
+                            VX = key;
+                            break;
                         }
                     }
+
+                    if (!pressed) {    // no key is pressed
+                        return;
+                    }
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0015: {   // FX15
@@ -494,7 +495,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     delay_timer = VX;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0018: {   // FX18
@@ -502,15 +503,24 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
                     sound_timer = VX;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x001E: {   // FX1E
                     // add VX to I
+                    // set VF to 1 if range overflow occurs (sum > 0xFFF)
                     unsigned char VX = V[(*opcode & 0x0F00) >> 8];
+                    
+                    if (I + VX > 0xFFF) {
+                        V[0xF] = 1;
+                    }
+                    else {
+                        V[0xF] = 0;
+                    }
+                    
                     I += VX;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0029: {   // FX29
@@ -518,7 +528,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     unsigned char sprite = V[(*opcode & 0x0F00) >> 8];
                     I = sprite * 5;      // since each sprite occupies 5 bytes 
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0033: {   // FX33
@@ -528,7 +538,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     memory[I + 1] = (VX % 100) / 10;    // extract 2nd digit
                     memory[I + 2] = VX % 10;            // extract 3rd digit
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0055: {   // FX55
@@ -540,7 +550,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     }
                     I += X + 1;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 case 0x0065: {   // FX65
@@ -552,18 +562,18 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                     }
                     I += X + 1;
                     pc += 2;
-                break;
+                    break;
                 }
 
                 default:
                     std::cout << "Unknown Opcode:" << *opcode << std::endl;
-                break;
+                    break;
             }
-        break;
+            break;
         }
         
         default:
             std::cout << "Unknown Opcode:" << *opcode << std::endl;
-        break;
+            break;
     }
 }
