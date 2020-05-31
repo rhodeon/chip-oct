@@ -13,7 +13,7 @@ private:
     unsigned char sp;                           // stack pointer
     
     unsigned char delay_timer;
-    unsigned char sound_timer;
+    // unsigned char sound_timer;
 
     std::array<unsigned char, 80> fontset;
     
@@ -27,4 +27,6 @@ public:
     void emulate_cycle();
     void decode_opcode(std::unique_ptr<unsigned short>& opcode);
     bool draw_flag = 0;
+    unsigned char sound_timer;
+
 };
