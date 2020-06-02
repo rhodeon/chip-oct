@@ -228,6 +228,23 @@ void set_keys(chip8& game, SDL_Event& event) {
     }
 }
 
+void controls(chip8& game, SDL_Event& event) {
+    if (event.type == SDL_QUIT) {
+        exit(0);
+    }
+
+    if (event.type == SDL_KEYDOWN) {
+        if (event.key.keysym.sym == SDLK_ESCAPE) {
+            exit(0);
+        }
+        
+        if (event.key.keysym.sym == SDLK_F1) {
+            game.reset();
+            game.draw_flag = true;
+        }
+    }
+}
+
 void game_loop(chip8& game, SDL_Window*& window, SDL_Surface*& base_surface, Mix_Chunk*& beep) {
     SDL_Event event;
     
@@ -236,10 +253,7 @@ void game_loop(chip8& game, SDL_Window*& window, SDL_Surface*& base_surface, Mix
         
             while(SDL_PollEvent(&event)) {  // set key actions
                 set_keys(game, event);
-
-                if (event.type == SDL_QUIT) {
-                exit(0);
-                }
+                controls(game, event);
             }
             
             if (game.draw_flag) {
@@ -247,7 +261,7 @@ void game_loop(chip8& game, SDL_Window*& window, SDL_Surface*& base_surface, Mix
                 game.draw_flag = false;
             }
 
-            if (game.sound_timer > 0) {
+            if (game.get_sound_timer() > 0) {
                 Mix_PlayChannel(-1, beep, 0);
             }
 
