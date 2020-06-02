@@ -296,10 +296,6 @@ void controls(chip8& game, SDL_Event& event) {
             game.reset();
             game.draw_flag = true;
         }
-
-        if (event.key.keysym.sym == SDLK_F2) {
-            // save_state(game);
-        }
     }
 }
 
@@ -336,14 +332,3 @@ void draw_graphics(chip8& game, SDL_Window*& window, SDL_Surface*& base_surface)
     }
     SDL_UpdateWindowSurface(window);
 }
-
-/* void save_state(chip8& game) {
-    const char* state = tinyfd_saveFileDialog(".", NULL, 0, NULL, 0);
-    std::ofstream save; 
-    save.open(std::string(state));
-
-    for (auto byte : game.memory) {
-        save << byte;
-    }
-    save.close();
-} */
