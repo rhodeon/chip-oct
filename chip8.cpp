@@ -409,8 +409,8 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             // draw sprite at VX, VY with N bytes of sprite data starting at I
             // flip pixel on screen if corresponding pixel in memory is 1
             // set VF to 1 if a pixel is unset, and 0 otherwise
-            int X = V[(*opcode & 0x0F00) >> 8];    // starting X point (column)
-            int Y = V[(*opcode & 0x00F0) >> 4];    // starting y point (row)
+            int X = V[(*opcode & 0x0F00) >> 8] % 64;    // starting X point (column)
+            int Y = V[(*opcode & 0x00F0) >> 4] % 32;    // starting y point (row)
             int height = *opcode & 0x000F;  // number of rows (N)
             unsigned char pixels;           // pixels in memory (starting at address I)
 
