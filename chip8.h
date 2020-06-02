@@ -13,20 +13,24 @@ private:
     unsigned char sp;                           // stack pointer
     
     unsigned char delay_timer;
-    // unsigned char sound_timer;
+    unsigned char sound_timer;
 
     std::array<unsigned char, 80> fontset;
     
-public:
-    chip8();
-    std::array<unsigned char, 16> keyboard;
-    std::array<unsigned char, 64 * 32> display;
-    void initialize();
+    void decode_opcode(std::unique_ptr<unsigned short>& opcode);
     void clear_display();
+    
+public:gi
+    chip8();
+    void initialize();
     bool load_rom(const char* rom_name);
     void emulate_cycle();
-    void decode_opcode(std::unique_ptr<unsigned short>& opcode);
+    void reset();   // restart game
+    
+    std::array<unsigned char, 16> keyboard;
+    std::array<unsigned char, 64 * 32> display;
+    
     bool draw_flag = 0;
-    unsigned char sound_timer;
+    unsigned char get_sound_timer();
 
 };
