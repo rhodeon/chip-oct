@@ -4,6 +4,8 @@
 #include <ctime>
 #include <memory>
 #include <fstream>
+#include <cstring>
+#include <type_traits>
 
 #include "chip8.h"
 
@@ -80,15 +82,30 @@ void chip8::clear_display() {
     }
 }
 
+unsigned char chip8::get_sound_timer() {
+    return sound_timer;
+}
+
+void chip8::reset() {
+    std::array<unsigned char, 4096> backup;     // array to hold rom data
+    std::memcpy(&backup, &memory, 4096);
+    initialize();   // reset all components
+    std::memcpy(&memory, &backup, 4096);    // restore rom data
+}
+
 bool chip8::load_rom(const char* rom_name) {
     // load ROM
     std::fstream rom(rom_name, std::ios::in|std::ios::binary);
     
-    // get size
+    if (!rom.is_open()) {     // Check if ROM was loaded
+        std::cout << "File not found" << std::endl;
+        return false;
+    }
+    
+    // get ROM size
     rom.seekg(0, rom.end);
     int rom_size = rom.tellg();
     rom.seekg(0);   // rewind rom
-    // std::cout << rom_size << std::endl;
 
     if (4096 - 512 < rom_size) {    // ensure size of ROM is valid
         std::cerr << "ROM size too large for memory" << std::endl;
@@ -96,7 +113,7 @@ bool chip8::load_rom(const char* rom_name) {
     }
     
     // create buffer to hold ROM data
-    std::unique_ptr<char, decltype(free)*>  data_buffer((char*)malloc(rom_size), free);   
+    std::unique_ptr<char, decltype(free)*>  data_buffer((char*)malloc(rom_size), free);
 
     // copy rom data to buffer
     int data_size = rom.readsome(data_buffer.get(), rom_size);
@@ -106,9 +123,7 @@ bool chip8::load_rom(const char* rom_name) {
     }
 
     // copy buffer data into CHIP-8 memory
-    for (int byte = 0; byte < data_size; ++byte) {
-        memory[512 + byte] = data_buffer.get()[byte];
-    }
+    std::memcpy(&memory[512], data_buffer.get(), rom_size);
 
     rom.close();
     return true;
@@ -543,24 +558,20 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
 
                 case 0x0055: {   // FX55
                     // store values of V0-VX in memory starting at address I
-                    // set I to I + X + 1
                     char X = (*opcode & 0x0F00) >> 8;
                     for (int reg = 0; reg <= X; ++reg) {
                         memory[I + reg] = V[reg];
                     }
-                    I += X + 1;
                     pc += 2;
                     break;
                 }
 
                 case 0x0065: {   // FX65
                     // fill V0-VX with values at memory from address I
-                    // set I to I + X + 1
                     char X = (*opcode & 0x0F00) >> 8;
                     for (int reg = 0; reg <= X; ++reg) {
                         V[reg] = memory[I + reg];
                     }
-                    I += X + 1;
                     pc += 2;
                     break;
                 }
