@@ -20,7 +20,7 @@ private:
     void decode_opcode(std::unique_ptr<unsigned short>& opcode);
     void clear_display();
     
-public:gi
+public:
     chip8();
     void initialize();
     bool load_rom(const char* rom_name);
