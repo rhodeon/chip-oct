@@ -1,34 +1,45 @@
-NOTE: Only tested on Linux. 
+# NOTE: 
+Only tested on Linux. 
 
-Requirement: 
+# Requirement: 
 SDL2
 
-Building:
-Switch to "src" directory and run "make"
+# Building:
+cd src/
 
-Running:
-Switch to "bin" directory for the compiled file
+make
 
-To run in GUI mode:
+# Running:
+cd bin/ 
+
+./chip-oct (rom_file)
+
+## Running in GUI mode:
 ./chip-oct
 
-To open ROM directly in terminal:
-./chip-oct rom_name
+## Opening ROM directly in terminal:
+./chip-oct rom_file
 
 
-Controls:
-ESC - quit
-F1 - reset game
+# Controls:
+ESC - Quit
 
-Key-Bindings:
+F1 - Restart game
 
-CHIP-8 Keypad                   Keyboard
-  +-+-+-+-+                    +-+-+-+-+
-  |1|2|3|C|                    |1|2|3|4|
-  +-+-+-+-+                    +-+-+-+-+
-  |4|5|6|D|                    |Q|W|E|R|
-  +-+-+-+-+       =>           +-+-+-+-+
-  |7|8|9|E|                    |A|S|D|F|
-  +-+-+-+-+                    +-+-+-+-+
-  |A|0|B|F|                    |Z|X|C|V|
-  +-+-+-+-+                    +-+-+-+-+
+# Key-Bindings:
+## CHIP-8 Keypad
+  | | | | |                    
+  --|-|-|--
+  |1|2|3|C|                   
+  |4|5|6|D|                   
+  |7|8|9|E|                   
+  |A|0|B|F|                   
+
+
+## Keyboard
+| | | | |
+--|-|-|--
+|1|2|3|4|
+|Q|W|E|R|
+|A|S|D|F|
+|Z|X|C|V|
