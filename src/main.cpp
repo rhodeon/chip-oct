@@ -83,7 +83,8 @@ void init_window(SDL_Window*& window, SDL_Surface*& surface, int width, int heig
 }
 
 void load_game (chip8& game, int argc, const char* argv[]) {
-    /* Checks for number of arguments and loads ROM 
+    /* 
+     * Checks for number of arguments and loads ROM 
      * If only one argument exists (./chip-oct), display "open ROM" dialogue box   
      * If two arguments exists (./chip-oct rom_name), open ROM directly
      * If more than two arguments exist, quit program
@@ -283,6 +284,9 @@ void set_keys(chip8& game, SDL_Event& event) {
 }
 
 void controls(chip8& game, SDL_Event& event) {
+    /* 
+     * Sets non-game controls
+     */
     if (event.type == SDL_QUIT) {
         exit(0);
     }
@@ -302,7 +306,7 @@ void controls(chip8& game, SDL_Event& event) {
 void draw_graphics(chip8& game, SDL_Window*& window, SDL_Surface*& base_surface) {
     /* 
      * Copies the pixels in the display buffer and displays them on the corresponding positions on the screen
-    */
+     */
 
     // width and height of CHIP-8 platform
     const int c8_width = 64;
