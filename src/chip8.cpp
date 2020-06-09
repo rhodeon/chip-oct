@@ -80,6 +80,10 @@ void chip8::clear_display() {
 }
 
 void chip8::reset() {
+    /*
+     * Restarts current game
+     */
+
     std::array<unsigned char, 4096> backup;     // array to hold rom data
     std::memcpy(&backup, &memory, 4096);
     initialize();   // reset all components
@@ -405,9 +409,9 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
                 // traverse over columns
                 for (int column = 0; column < 8; ++column) {
                     int abs_column = X + column;
-                    unsigned char& pixel_on_display = display[abs_column + (abs_row * 64)];  // current pixel on screen
+                    unsigned char& pixel_on_display = display[abs_column + (abs_row * 64) % 2048];  // current pixel on screen
                     char pixel_in_memory = pixels & (0x80 >> column);
-
+                    
                     // check if pixel in memory is 1
                     if (pixel_in_memory != 0) {
                         if (pixel_on_display == 1) { // pixel is unset
