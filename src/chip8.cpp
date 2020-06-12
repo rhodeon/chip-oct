@@ -25,7 +25,6 @@ chip8::chip8() {
         0xE0, 0x90, 0x90, 0x90, 0xE0,   // D
         0xF0, 0x80, 0xF0, 0x80, 0xF0,   // E
         0xF0, 0x80, 0xF0, 0x80, 0x80,   // F
-        
     };
 
     initialize();
@@ -92,7 +91,7 @@ void chip8::reset() {
 
 bool chip8::load_rom(const char* rom_name) {
     // load ROM
-    std::fstream rom(rom_name, std::ios::in|std::ios::binary);
+    std::ifstream rom(rom_name, std::ios::in|std::ios::binary);
     
     if (!rom.is_open()) {     // Check if ROM was loaded
         std::cout << "File not found" << std::endl;
@@ -104,23 +103,16 @@ bool chip8::load_rom(const char* rom_name) {
     int rom_size = rom.tellg();
     rom.seekg(0);   // rewind rom
 
-    if (4096 - 512 < rom_size) {    // ensure size of ROM is valid
+    if (rom_size > 4096 - 512) {    // ensure size of ROM is valid
         std::cerr << "ROM size too large for memory" << std::endl;
         return false;
     }
-    
-    // create buffer to hold ROM data
-    std::unique_ptr<char, decltype(free)*>  data_buffer((char*)malloc(rom_size), free);
 
-    // copy rom data to buffer
-    int data_size = rom.readsome(data_buffer.get(), rom_size);
-    if (data_size != rom_size) {
-        std::cerr << "Reading Error" << std::endl;
-        return false;
+    char rom_data = 0;
+
+    for (int byte = 512; rom.get(rom_data); ++ byte) {
+        memory[byte] = (unsigned char) rom_data;
     }
-
-    // copy buffer data into CHIP-8 memory
-    std::memcpy(&memory[512], data_buffer.get(), rom_size);
 
     rom.close();
     return true;
@@ -397,7 +389,7 @@ void chip8::decode_opcode(std::unique_ptr<unsigned short>& opcode) {
             int X = V[(*opcode & 0x0F00) >> 8];    // starting X point (column)
             int Y = V[(*opcode & 0x00F0) >> 4];    // starting y point (row)
             int height = *opcode & 0x000F;  // number of rows (N)
-            unsigned char pixels;           // pixels in memory (starting at address I)
+            unsigned char pixels = 0;           // pixels in memory (starting at address I)
 
             V[0xF] = 0;
 
